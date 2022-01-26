@@ -26,14 +26,14 @@ class FileTransfer extends Service_1.Service {
     async init() { }
     parseData(p_ctx) {
         const check = p_ctx.getString(4);
-        assert_1.strict(check === MAGIC_MARKER);
+        (0, assert_1.strict)(check === MAGIC_MARKER);
         const code = p_ctx.readUInt32();
         // If first 4 bytes are non-zero, a timecode is sent
         if (code > 0) {
-            assert_1.strict(p_ctx.sizeLeft() === 8);
+            (0, assert_1.strict)(p_ctx.sizeLeft() === 8);
             const id = p_ctx.readUInt32();
-            assert_1.strict(id === 0x07d2);
-            assert_1.strict(p_ctx.readUInt32() === 0);
+            (0, assert_1.strict)(id === 0x07d2);
+            (0, assert_1.strict)(p_ctx.readUInt32() === 0);
             return {
                 id: MessageId.TimeCode,
                 message: {
@@ -53,10 +53,10 @@ class FileTransfer extends Service_1.Service {
                     sources.push(location);
                 }
                 // Final three bytes should be 0x1 0x1 0x1
-                assert_1.strict(p_ctx.readUInt8() === 0x1);
-                assert_1.strict(p_ctx.readUInt8() === 0x1);
-                assert_1.strict(p_ctx.readUInt8() === 0x1);
-                assert_1.strict(p_ctx.isEOF());
+                (0, assert_1.strict)(p_ctx.readUInt8() === 0x1);
+                (0, assert_1.strict)(p_ctx.readUInt8() === 0x1);
+                (0, assert_1.strict)(p_ctx.readUInt8() === 0x1);
+                (0, assert_1.strict)(p_ctx.isEOF());
                 return {
                     id: messageId,
                     message: {
@@ -65,7 +65,7 @@ class FileTransfer extends Service_1.Service {
                 };
             }
             case MessageId.FileStat: {
-                assert_1.strict(p_ctx.sizeLeft() === 53);
+                (0, assert_1.strict)(p_ctx.sizeLeft() === 53);
                 // Last 4 bytes (FAT32) indicate size of file
                 p_ctx.seek(49);
                 const size = p_ctx.readUInt32();
@@ -84,8 +84,8 @@ class FileTransfer extends Service_1.Service {
                 };
             }
             case MessageId.FileTransferId: {
-                assert_1.strict(p_ctx.sizeLeft() === 12);
-                assert_1.strict(p_ctx.readUInt32() === 0x0);
+                (0, assert_1.strict)(p_ctx.sizeLeft() === 12);
+                (0, assert_1.strict)(p_ctx.readUInt32() === 0x0);
                 const filesize = p_ctx.readUInt32();
                 const id = p_ctx.readUInt32();
                 return {
@@ -97,11 +97,11 @@ class FileTransfer extends Service_1.Service {
                 };
             }
             case MessageId.FileTransferChunk: {
-                assert_1.strict(p_ctx.readUInt32() === 0x0);
+                (0, assert_1.strict)(p_ctx.readUInt32() === 0x0);
                 const offset = p_ctx.readUInt32();
                 const chunksize = p_ctx.readUInt32();
-                assert_1.strict(chunksize === p_ctx.sizeLeft());
-                assert_1.strict(p_ctx.sizeLeft() <= exports.CHUNK_SIZE);
+                (0, assert_1.strict)(chunksize === p_ctx.sizeLeft());
+                (0, assert_1.strict)(p_ctx.sizeLeft() <= exports.CHUNK_SIZE);
                 return {
                     id: messageId,
                     message: {
@@ -126,7 +126,7 @@ class FileTransfer extends Service_1.Service {
     }
     messageHandler(p_data) {
         if (p_data.id === MessageId.FileTransferChunk && this.receivedFile) {
-            assert_1.strict(this.receivedFile.sizeLeft() >= p_data.message.size);
+            (0, assert_1.strict)(this.receivedFile.sizeLeft() >= p_data.message.size);
             this.receivedFile.write(p_data.message.data);
         }
         else {
@@ -134,7 +134,7 @@ class FileTransfer extends Service_1.Service {
         }
     }
     async getFile(p_location) {
-        assert_1.strict(this.receivedFile === null);
+        (0, assert_1.strict)(this.receivedFile === null);
         await this.requestFileTransferId(p_location);
         const txinfo = await this.waitForMessage(MessageId.FileTransferId);
         if (txinfo) {
@@ -147,7 +147,7 @@ class FileTransfer extends Service_1.Service {
                         reject(new Error(`Failed to download '${p_location}'`));
                     }, common_1.DOWNLOAD_TIMEOUT);
                     while (this.receivedFile.isEOF() === false) {
-                        await sleep_1.sleep(200);
+                        await (0, sleep_1.sleep)(200);
                     }
                     resolve(true);
                 });
@@ -168,17 +168,22 @@ class FileTransfer extends Service_1.Service {
         const message = await this.waitForMessage(MessageId.SourceLocations);
         if (message) {
             for (const source of message.sources) {
-                const database = `/${source}/Engine Library/m.db`;
-                await this.requestStat(database);
-                const fstatMessage = await this.waitForMessage(MessageId.FileStat);
-                //console.log(fstatMessage);
-                result.push({
-                    name: source,
-                    database: {
-                        location: database,
-                        size: fstatMessage.size,
-                    },
-                });
+                // Try to retrieve V2.x Database2/m.db first. If file doesn't exist or 0 size, retrieve V1.x /m.db
+                const databases = [`/${source}/Engine Library/Database2/m.db`, `/${source}/Engine Library/m.db`];
+                for (const database of databases) {
+                    await this.requestStat(database);
+                    const fstatMessage = await this.waitForMessage(MessageId.FileStat);
+                    if (fstatMessage.size > 0) {
+                        result.push({
+                            name: source,
+                            database: {
+                                location: database,
+                                size: fstatMessage.size,
+                            },
+                        });
+                        break;
+                    }
+                }
             }
         }
         return result;

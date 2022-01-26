@@ -5,7 +5,7 @@ const assert_1 = require("assert");
 const Context_1 = require("./Context");
 function fromCString(p_buffer) {
     const arr = String.fromCharCode.apply(null, p_buffer).split('\0');
-    assert_1.strict(arr.length > 0);
+    (0, assert_1.strict)(arr.length > 0);
     return arr[0];
 }
 class ReadContext extends Context_1.Context {
@@ -19,7 +19,7 @@ class ReadContext extends Context_1.Context {
         }
         const view = new Uint8Array(this.buffer, this.pos, bytesToRead);
         this.pos += bytesToRead;
-        assert_1.strict(view.byteLength === bytesToRead);
+        (0, assert_1.strict)(view.byteLength === bytesToRead);
         return view;
     }
     readRemaining() {
@@ -37,8 +37,8 @@ class ReadContext extends Context_1.Context {
     readNetworkStringUTF16() {
         // node.js only supports little endian of UTF16, and we need big endian, so read one by one
         const bytes = this.readUInt32();
-        assert_1.strict(bytes <= this.sizeLeft());
-        assert_1.strict(bytes % 2 === 0); // Should be 2 bytes per character; otherwise assert
+        (0, assert_1.strict)(bytes <= this.sizeLeft());
+        (0, assert_1.strict)(bytes % 2 === 0); // Should be 2 bytes per character; otherwise assert
         let result = '';
         for (let i = 0; i < bytes / 2; ++i) {
             result += String.fromCharCode(this.readUInt16());

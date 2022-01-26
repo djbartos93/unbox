@@ -1,14 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StageLinqValue = exports.MessageId = exports.Action = exports.CLIENT_TOKEN = exports.DISCOVERY_MESSAGE_MARKER = exports.DOWNLOAD_TIMEOUT = exports.CONNECT_TIMEOUT = exports.MESSAGE_TIMEOUT = exports.LISTEN_TIMEOUT = exports.LISTEN_PORT = exports.ANNOUNCEMENT_INTERVAL = void 0;
+exports.StageLinqValue = exports.MessageId = exports.Action = exports.EXCLUDE_DEVICES = exports.CLIENT_TOKEN = exports.DISCOVERY_MESSAGE_MARKER = exports.DOWNLOAD_TIMEOUT = exports.CONNECT_TIMEOUT = exports.MESSAGE_TIMEOUT = exports.LOST_TIMEOUT = exports.DISCOVERY_TIMEOUT = exports.LISTEN_PORT = exports.ANNOUNCEMENT_INTERVAL = void 0;
 exports.ANNOUNCEMENT_INTERVAL = 1000; // in ms
 exports.LISTEN_PORT = 51337;
-exports.LISTEN_TIMEOUT = 5000; // in ms
+exports.DISCOVERY_TIMEOUT = 10000; // timeout in milliseconds. If no device is detected within this time, app shuts down
+exports.LOST_TIMEOUT = 5000; // once a detected device hasn't sent announcements for this amount of milliseconds, it's marked as lost
 exports.MESSAGE_TIMEOUT = 3000; // in ms
 exports.CONNECT_TIMEOUT = 5000; // in ms
 exports.DOWNLOAD_TIMEOUT = 10000; // in ms
 exports.DISCOVERY_MESSAGE_MARKER = 'airD';
 exports.CLIENT_TOKEN = new Uint8Array([82, 253, 252, 7, 33, 130, 101, 79, 22, 63, 95, 15, 154, 98, 29, 114]);
+exports.EXCLUDE_DEVICES = ['testing']; // List of all devices that shouldn't be detected by the listener
 var Action;
 (function (Action) {
     Action["Login"] = "DISCOVERER_HOWDY_";

@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Controller = void 0;
 const assert_1 = require("assert");
 const common_1 = require("./common");
-const dgram_1 = require("dgram");
 const ReadContext_1 = require("./utils/ReadContext");
 const WriteContext_1 = require("./utils/WriteContext");
 const sleep_1 = require("./utils/sleep");
@@ -11,52 +10,14 @@ const FileType = require("file-type");
 const tcp = require("./utils/tcp");
 const fs = require("fs");
 const Database = require("better-sqlite3");
-function readConnectionInfo(p_ctx, p_address) {
-    const magic = p_ctx.getString(4);
-    if (magic !== common_1.DISCOVERY_MESSAGE_MARKER) {
-        return null;
-    }
-    const result = {
-        token: p_ctx.read(16),
-        source: p_ctx.readNetworkStringUTF16(),
-        action: p_ctx.readNetworkStringUTF16(),
-        software: {
-            name: p_ctx.readNetworkStringUTF16(),
-            version: p_ctx.readNetworkStringUTF16(),
-        },
-        port: p_ctx.readUInt16(),
-        address: p_address,
-    };
-    assert_1.strict(p_ctx.isEOF());
-    return result;
-}
-async function discover() {
-    return await new Promise((resolve, reject) => {
-        const client = dgram_1.createSocket('udp4');
-        client.on('message', (p_announcement, p_remote) => {
-            const ctx = new ReadContext_1.ReadContext(p_announcement.buffer, false);
-            const result = readConnectionInfo(ctx, p_remote.address);
-            if (result === null || result.source === 'testing' || result.software.name === 'OfflineAnalyzer') {
-                return;
-            }
-            client.close();
-            assert_1.strict(ctx.tell() === p_remote.size);
-            assert_1.strict(result.action === common_1.Action.Login);
-            console.info(`Found '${result.source}' Controller at '${result.address}:${result.port}' with following software:`, result.software);
-            resolve(result);
-        });
-        client.bind(common_1.LISTEN_PORT);
-        setTimeout(() => {
-            reject(new Error('Failed to find controller'));
-        }, common_1.LISTEN_TIMEOUT);
-    });
-}
 class Controller {
-    constructor() {
+    ///////////////////////////////////////////////////////////////////////////
+    // Constructor
+    constructor(p_id, p_connectionInfo) {
+        this._id = null;
         this.connection = null;
-        //private source: string = null;
-        this.address = null;
-        this.port = 0;
+        this.connectionInfo = null;
+        this.serviceRequestAllowed = false;
         this.servicePorts = {};
         this.services = {
             StateMap: null,
@@ -64,27 +25,34 @@ class Controller {
         };
         this.timeAlive = 0;
         this.connectedSources = {};
+        (0, assert_1.strict)(p_id >= 0);
+        this._id = p_id;
+        this.connectionInfo = p_connectionInfo;
+    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Getters / Setters
+    get id() {
+        return this._id;
     }
     ///////////////////////////////////////////////////////////////////////////
     // Connect / Disconnect
     async connect() {
-        const info = await discover();
-        this.connection = await tcp.connect(info.address, info.port);
+        (0, assert_1.strict)(this.connectionInfo);
+        this.connection = await tcp.connect(this.connectionInfo.address, this.connectionInfo.port);
         this.connection.socket.on('data', (p_message) => {
             this.messageHandler(p_message);
         });
-        //this.source = info.source;
-        this.address = info.address;
-        this.port = info.port;
-        await this.requestAllServicePorts();
+        return await this.requestAvailableServices();
     }
     disconnect() {
         // Disconnect all services
         for (const [key, service] of Object.entries(this.services)) {
-            service.disconnect();
+            if (service) {
+                service.disconnect();
+            }
             this.services[key] = null;
         }
-        assert_1.strict(this.connection);
+        (0, assert_1.strict)(this.connection);
         this.connection.destroy();
         this.connection = null;
     }
@@ -108,6 +76,7 @@ class Controller {
                     this.servicePorts[service] = port;
                     break;
                 case common_1.MessageId.ServicesRequest:
+                    this.serviceRequestAllowed = true;
                     break;
                 default:
                     assert_1.strict.fail(`Unhandled message id '${id}'`);
@@ -117,23 +86,22 @@ class Controller {
     }
     ///////////////////////////////////////////////////////////////////////////
     // Public methods
-    getPort() {
-        return this.port;
-    }
     getTimeAlive() {
         return this.timeAlive;
     }
     // Factory function
     async connectToService(c) {
-        assert_1.strict(this.connection);
+        (0, assert_1.strict)(this.connection);
+        // FIXME: find out why we need these waits before connecting to a service
+        await (0, sleep_1.sleep)(500);
         const serviceName = c.name;
         if (this.services[serviceName]) {
             return this.services[serviceName];
         }
-        assert_1.strict(this.servicePorts.hasOwnProperty(serviceName));
-        assert_1.strict(this.servicePorts[serviceName] > 0);
+        (0, assert_1.strict)(this.servicePorts.hasOwnProperty(serviceName));
+        (0, assert_1.strict)(this.servicePorts[serviceName] > 0);
         const port = this.servicePorts[serviceName];
-        const service = new c(this.address, port, this);
+        const service = new c(this.connectionInfo.address, port, this);
         await service.connect();
         this.services[serviceName] = service;
         return service;
@@ -180,7 +148,7 @@ class Controller {
     // Database helpers
     querySource(p_sourceName, p_query, ...p_params) {
         if (!this.connectedSources[p_sourceName]) {
-            assert_1.strict.fail(`Source '${p_sourceName}' not connected`);
+            //assert.fail(`Source '${p_sourceName}' not connected`);
             return [];
         }
         const db = this.connectedSources[p_sourceName].db;
@@ -189,12 +157,15 @@ class Controller {
     }
     getAlbumArtPath(p_networkPath) {
         const result = this.getSourceAndTrackFromNetworkPath(p_networkPath);
+        if (!result) {
+            return null;
+        }
         const sql = 'SELECT * FROM Track WHERE path = ?';
         const dbResult = this.querySource(result.source, sql, result.trackPath);
         if (dbResult.length === 0) {
             return null;
         }
-        assert_1.strict(dbResult.length === 1); // there can only be one path
+        (0, assert_1.strict)(dbResult.length === 1); // there can only be one path
         const id = dbResult[0].idAlbumArt;
         const ext = this.connectedSources[result.source].albumArt.extensions[id];
         if (!ext) {
@@ -205,11 +176,14 @@ class Controller {
     ///////////////////////////////////////////////////////////////////////////
     // Private methods
     getSourceAndTrackFromNetworkPath(p_path) {
+        if (!p_path || p_path.length === 0) {
+            return null;
+        }
         const parts = p_path.split('/');
         //assert(parts.length > )
-        assert_1.strict(parts[0] === 'net:');
-        assert_1.strict(parts[1] === '');
-        assert_1.strict(parts[2].length === 36);
+        (0, assert_1.strict)(parts[0] === 'net:');
+        (0, assert_1.strict)(parts[1] === '');
+        (0, assert_1.strict)(parts[2].length === 36);
         const source = parts[3];
         let trackPath = parts.slice(5).join('/');
         if (parts[4] !== 'Engine Library') {
@@ -221,18 +195,25 @@ class Controller {
             trackPath: trackPath,
         };
     }
-    async requestAllServicePorts() {
-        assert_1.strict(this.connection);
+    async requestAvailableServices() {
+        (0, assert_1.strict)(this.connection);
         return new Promise(async (resolve, reject) => {
+            setTimeout(() => {
+                reject(new Error('Failed to requestServices'));
+            }, common_1.CONNECT_TIMEOUT);
+            // Wait for serviceRequestAllowed
+            while (true) {
+                if (this.serviceRequestAllowed) {
+                    break;
+                }
+                await (0, sleep_1.sleep)(250);
+            }
             // FIXME: Refactor into message writer helper class
             const ctx = new WriteContext_1.WriteContext();
             ctx.writeUInt32(common_1.MessageId.ServicesRequest);
             ctx.write(common_1.CLIENT_TOKEN);
             const written = await this.connection.write(ctx.getBuffer());
-            assert_1.strict(written === ctx.tell());
-            setTimeout(() => {
-                reject(new Error('Failed to requestServices'));
-            }, common_1.LISTEN_TIMEOUT);
+            (0, assert_1.strict)(written === ctx.tell());
             while (true) {
                 // FIXME: How to determine when all services have been announced?
                 if (Object.keys(this.servicePorts).length > 3) {
@@ -240,10 +221,10 @@ class Controller {
                     for (const [name, port] of Object.entries(this.servicePorts)) {
                         console.info(`\tport: ${port} => ${name}`);
                     }
-                    resolve();
+                    resolve(this.servicePorts);
                     break;
                 }
-                await sleep_1.sleep(250);
+                await (0, sleep_1.sleep)(250);
             }
         });
     }

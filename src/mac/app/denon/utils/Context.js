@@ -15,12 +15,12 @@ class Context {
         return this.pos;
     }
     seek(p_bytes) {
-        assert_1.strict(this.pos + p_bytes >= 0);
-        assert_1.strict(this.pos + p_bytes <= this.buffer.byteLength);
+        (0, assert_1.strict)(this.pos + p_bytes >= 0);
+        (0, assert_1.strict)(this.pos + p_bytes <= this.buffer.byteLength);
         this.pos += p_bytes;
     }
     set(p_offset) {
-        assert_1.strict(p_offset >= 0 && p_offset <= this.buffer.byteLength);
+        (0, assert_1.strict)(p_offset >= 0 && p_offset <= this.buffer.byteLength);
         this.pos = p_offset;
     }
     isEOF() {

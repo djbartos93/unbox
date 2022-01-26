@@ -47,18 +47,14 @@
     },
     "directories": {
       "output": "release"
-    },
-    "publish": {
-      "provider": "github",
-      "private": true
     }
   },
   "devDependencies": {
     "connect": "^3.7.0",
-    "electron": "^13.1.0",
-    "electron-builder": "^22.11.7",
+    "electron": "^13.6.7",
+    "electron-builder": "^22.14.5",
     "electron-packager": "^15.2.0",
-    "electron-rebuild": "^3.2.5",
+    "electron-rebuild": "^3.2.7",
     "fs": "^0.0.1-security",
     "mime": "^1.6.0",
     "node-pre-gyp": "^0.17.0",

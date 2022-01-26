@@ -4,7 +4,7 @@ const fs = require('fs');
 const { chromium } = require('playwright');
 const path = require('path');
 const os = require('os');
-const { denon } = require('./denon/main')
+const { denonn } = require('./denon/main')
 
 class Chunk {
 
@@ -45,11 +45,11 @@ class Poller {
 
             db.run("PRAGMA key = ''");
 
-            db.each(`select 
-                    h.created_at, 
-                    ifnull(c.Title, '') as Track, 
-                    ifnull(c.Subtitle, '') as Mix, 
-                    ifnull(l.Name, '') as Label, 
+            db.each(`select
+                    h.created_at,
+                    ifnull(c.Title, '') as Track,
+                    ifnull(c.Subtitle, '') as Mix,
+                    ifnull(l.Name, '') as Label,
                     ifnull(a.Name, '') as Artist,
                     ifnull(c.ImagePath, '') as Artwork
                     from djmdSongHistory as h
@@ -414,7 +414,7 @@ class Poller {
         var _this = this;
         var denonOutputPath = process.platform == 'darwin' ? 'denon/services/deckState.json' : 'denon\\services\\deckState.json';
 
-        denon().then(() => {
+        denonn().then(() => {
 
             _this.denonPoller = true;
 

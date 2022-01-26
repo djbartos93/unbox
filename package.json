@@ -8,7 +8,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "publish": null,
     "lint": "echo \"No linting configured\""
   },
   "keywords": [],
@@ -42,14 +42,14 @@
     }
   },
   "dependencies": {
-    "@journeyapps/sqlcipher": "^4.1.0",
+    "@journeyapps/sqlcipher": "^5.3.1",
     "csv-writer": "^1.6.0",
-    "electron-builder": "^22.9.1",
-    "electron-rebuild": "^2.3.2",
     "electron-squirrel-startup": "^1.0.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.50",
+    "electron-builder": "^22.9.1",
+    "electron-rebuild": "^2.3.2",
     "@electron-forge/maker-deb": "^6.0.0-beta.50",
     "@electron-forge/maker-rpm": "^6.0.0-beta.50",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.50",

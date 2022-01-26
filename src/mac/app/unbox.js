@@ -64,11 +64,11 @@ class Unbox {
 
         this._buildOutputDir();
 
-        const dir = fs.opendirSync(path.join(__dirname, '../../app/overlays'));
+        const dir = fs.opendirSync(path.join('/Volumes/warehouse/Users/erbartos/Documents/Code/unbox/src/mac/app/overlays'));
         let dirent;
         while ((dirent = dir.readSync()) !== null) {
             let fileName = dirent.name;
-            fs.copyFile(path.join(__dirname, '../../app/overlays', fileName), path.join(this.outputPath, fileName), (err) => {
+            fs.copyFile(path.join('/Volumes/warehouse/Users/erbartos/Documents/Code/unbox/src/mac/app/overlays', fileName), path.join(this.outputPath, fileName), (err) => {
                 if (err) { console.log(err) };
             });
         }

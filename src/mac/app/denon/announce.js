@@ -7,17 +7,18 @@ const dgram_1 = require("dgram");
 const ip_1 = require("ip");
 const os_1 = require("os");
 const WriteContext_1 = require("./utils/WriteContext");
-function findBroadcastIP() {
-    const interfaces = Object.values(os_1.networkInterfaces());
+function findBroadcastIPs() {
+    const interfaces = Object.values((0, os_1.networkInterfaces)());
+    const ips = [];
     for (const i of interfaces) {
         for (const entry of i) {
             if (entry.family === 'IPv4' && entry.internal === false) {
-                const info = ip_1.subnet(entry.address, entry.netmask);
-                return info.broadcastAddress;
+                const info = (0, ip_1.subnet)(entry.address, entry.netmask);
+                ips.push(info.broadcastAddress);
             }
         }
     }
-    return null;
+    return ips;
 }
 const announcementMessage = {
     action: common_1.Action.Login,
@@ -29,7 +30,7 @@ const announcementMessage = {
     source: 'testing',
     token: common_1.CLIENT_TOKEN,
 };
-const announceClient = dgram_1.createSocket('udp4');
+let announceClient = null;
 let announceTimer = null;
 function writeDiscoveryMessage(p_ctx, p_message) {
     let written = 0;
@@ -42,20 +43,41 @@ function writeDiscoveryMessage(p_ctx, p_message) {
     written += p_ctx.writeUInt16(p_message.port);
     return written;
 }
-async function broadcastMessage(p_message) {
-    const bip = findBroadcastIP();
-    return await new Promise((resolve, reject) => {
-        announceClient.send(p_message, common_1.LISTEN_PORT, bip, () => {
-            //console.log('UDP message sent to ' + bip);
-            resolve();
-        });
-        setTimeout(() => {
-            reject(new Error('Failed to send announcement'));
-        }, common_1.CONNECT_TIMEOUT);
+async function initUdpSocket() {
+    return new Promise((resolve, reject) => {
+        try {
+            const client = (0, dgram_1.createSocket)('udp4');
+            client.bind(); // we need to bind to a random port in order to enable broadcasting
+            client.on('listening', () => {
+                client.setBroadcast(true); // needs to be true in order to UDP multicast on MacOS
+                resolve(client);
+            });
+        }
+        catch (err) {
+            console.error(`Failed to create UDP socket for announcing: ${err}`);
+            reject(err);
+        }
     });
 }
+async function broadcastMessage(p_message) {
+    const ips = findBroadcastIPs();
+    (0, assert_1.strict)(ips.length > 0, 'No broadcast IPs have been found');
+    const send = async function (p_ip) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                reject(new Error('Failed to send announcement'));
+            }, common_1.CONNECT_TIMEOUT);
+            announceClient.send(p_message, common_1.LISTEN_PORT, p_ip, () => {
+                //console.log('UDP message sent to ' + p_ip);
+                resolve();
+            });
+        });
+    };
+    const promises = ips.map((ip) => send(ip));
+    await Promise.all(promises);
+}
 async function unannounce() {
-    assert_1.strict(announceTimer);
+    (0, assert_1.strict)(announceTimer);
     clearInterval(announceTimer);
     announceTimer = null;
     announcementMessage.action = common_1.Action.Logout;
@@ -70,6 +92,8 @@ async function announce() {
     if (announceTimer) {
         return;
     }
+    if (!announceClient)
+        announceClient = await initUdpSocket();
     announcementMessage.action = common_1.Action.Login;
     const ctx = new WriteContext_1.WriteContext();
     writeDiscoveryMessage(ctx, announcementMessage);

@@ -18,7 +18,7 @@ class Service extends EventEmitter {
         this.controller = p_controller;
     }
     async connect() {
-        assert_1.strict(!this.connection);
+        (0, assert_1.strict)(!this.connection);
         this.connection = await tcp.connect(this.address, this.port);
         let queue = null;
         this.connection.socket.on('data', (p_data) => {
@@ -74,7 +74,7 @@ class Service extends EventEmitter {
         console.info(`Connected to service '${this.name}' at port ${this.port}`);
     }
     disconnect() {
-        assert_1.strict(this.connection);
+        (0, assert_1.strict)(this.connection);
         this.connection.destroy();
         this.connection = null;
     }
@@ -93,22 +93,22 @@ class Service extends EventEmitter {
         });
     }
     async write(p_ctx) {
-        assert_1.strict(p_ctx.isLittleEndian() === false);
-        assert_1.strict(this.connection);
+        (0, assert_1.strict)(p_ctx.isLittleEndian() === false);
+        (0, assert_1.strict)(this.connection);
         const buf = p_ctx.getBuffer();
         //console.info("SEND");
         //hex(buf);
         const written = await this.connection.write(buf);
-        assert_1.strict(written === buf.byteLength);
+        (0, assert_1.strict)(written === buf.byteLength);
         return written;
     }
     async writeWithLength(p_ctx) {
-        assert_1.strict(p_ctx.isLittleEndian() === false);
-        assert_1.strict(this.connection);
+        (0, assert_1.strict)(p_ctx.isLittleEndian() === false);
+        (0, assert_1.strict)(this.connection);
         const newCtx = new WriteContext_1.WriteContext({ size: p_ctx.tell() + 4, autoGrow: false });
         newCtx.writeUInt32(p_ctx.tell());
         newCtx.write(p_ctx.getBuffer());
-        assert_1.strict(newCtx.isEOF());
+        (0, assert_1.strict)(newCtx.isEOF());
         return await this.write(newCtx);
     }
     // FIXME: Cannot use abstract because of async; is there another way to get this?

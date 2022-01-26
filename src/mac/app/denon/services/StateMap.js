@@ -69,7 +69,7 @@ class StateMap extends Service_1.Service {
     }
     parseData(p_ctx) {
         const marker = p_ctx.getString(4);
-        assert_1.strict(marker === MAGIC_MARKER);
+        (0, assert_1.strict)(marker === MAGIC_MARKER);
         const type = p_ctx.readUInt32();
         switch (type) {
             case MAGIC_MARKER_JSON: {
@@ -101,20 +101,21 @@ class StateMap extends Service_1.Service {
         return null;
     }
     messageHandler(p_data) {
-        
+
+
         let stagelinqEvent = p_data.message.name;
         let stagelinqEventValue = p_data.message.json ? JSON.stringify(p_data.message.json) : p_data.message.interval;
 
         if ((stagelinqEvent.includes('PlayState')) || (stagelinqEvent.includes('ExternalMixerVolume')) || (stagelinqEvent.includes('ArtistName')) || (stagelinqEvent.includes('SongName'))) {
 
             let [stagelinqEventType, deck, ..._rest] = stagelinqEvent.split('/').reverse();
-            let deckState = JSON.parse(fs.readFileSync('./deckState.json', 'utf8'));
+            let deckState = JSON.parse(fs.readFileSync('/Volumes/warehouse/Users/erbartos/Documents/Code/unbox/src/mac/app/denon/services/deckState.json', 'utf8'));
 
             deckState[deck] = { ...{}, ...deckState[deck] };
             deckState[deck][stagelinqEventType] = stagelinqEventType.includes('PlayState') ? stagelinqEventValue['state'] : stagelinqEventValue['value'] || stagelinqEventValue['string'];
 
-            fs.writeFileSync('./deckState.json', JSON.stringify(deckState));
-        }
+            fs.writeFileSync('/Volumes/warehouse/Users/erbartos/Documents/Code/unbox/src/mac/app/denon/services/deckState.json', JSON.stringify(deckState));
+          }
 
         console.log(`${p_data.message.name} => ${p_data.message.json ? JSON.stringify(p_data.message.json) : p_data.message.interval}`);
         if (p_data.message.name.includes('TrackNetworkPath')) {
@@ -124,7 +125,7 @@ class StateMap extends Service_1.Service {
                 console.log(`${p_data.message.name.replace('TrackNetworkPath', 'TrackLocalAlbumArtPath')} => {"string": "${path}", "type":0}`);
             }
             else {
-                console.log(`${p_data.message.name.replace('TrackNetworkPath', 'TrackLocalAlbumArtPath')} => {"string": null, "type":-1}`);
+                console.log(`${p_data.message.name.replace('TrackNetworkPath', 'TrackLocalAlbumArtPath')} => {"string": "", "type":-1}`);
             }
         }
     }
@@ -143,11 +144,11 @@ class StateMap extends Service_1.Service {
             const ctx = new WriteContext_1.WriteContext();
             ctx.writeUInt32(message.length);
             const written = await this.connection.write(ctx.getBuffer());
-            assert_1.strict(written === 4);
+            (0, assert_1.strict)(written === 4);
         }
         {
             const written = await this.connection.write(message);
-            assert_1.strict(written === message.length);
+            (0, assert_1.strict)(written === message.length);
         }
     }
 }
